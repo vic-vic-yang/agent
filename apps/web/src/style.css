@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, "Segoe UI", "Microsoft YaHei", sans-serif; background: #f5f6f8; color: #1f2328; }
+.container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+.card { background: #fff; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+.btn { display: inline-block; padding: 8px 16px; border: none; border-radius: 6px; background: #1f6feb; color: #fff; cursor: pointer; font-size: 14px; text-decoration: none; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+input, textarea, select { width: 100%; padding: 8px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; margin-bottom: 12px; font-family: inherit; }
+label { display: block; margin-bottom: 4px; font-size: 13px; color: #57606a; }
+.error { color: #cf222e; font-size: 13px; margin-bottom: 8px; }
+.log-box { background: #0d1117; color: #c9d1d9; font-family: Consolas, monospace; font-size: 13px; padding: 12px; border-radius: 6px; max-height: 480px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+.status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; }
+.status-queued { background: #eaeef2; }
+.status-running { background: #ddf4ff; color: #0969da; }
+.status-done { background: #dafbe1; color: #1a7f37; }
+.status-failed { background: #ffebe9; color: #cf222e; }
+.status-done_with_warning { background: #fff8c5; color: #9a6700; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #e1e4e8; font-size: 14px; }
