@@ -1,6 +1,7 @@
 # 构建上下文 = 仓库根：docker compose 使用；内含 web 构建
 FROM node:22-bookworm
 
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 
 WORKDIR /app

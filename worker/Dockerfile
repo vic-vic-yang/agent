@@ -1,6 +1,9 @@
 # 构建上下文 = 仓库根：docker build -f worker/Dockerfile -t agent-worker:latest .
 FROM node:22-bookworm
 
+# 用 package.json 里 packageManager 字段钉死的 pnpm 版本（与开发机一致），
+# 避免 corepack 拉最新版触发不同的供应链策略导致构建不可复现
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 
 WORKDIR /app
