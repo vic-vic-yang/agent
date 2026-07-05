@@ -4,6 +4,7 @@ import { buildApp } from "./app.js";
 import { seedAdmin } from "./auth.js";
 import { initDb, type DB } from "./db.js";
 import { loadConfig } from "./config.js";
+import { LogBus } from "./logbus.js";
 
 let db: DB;
 let app: FastifyInstance;
@@ -11,7 +12,7 @@ let app: FastifyInstance;
 beforeEach(async () => {
   db = initDb(":memory:");
   seedAdmin(db, "admin123");
-  app = buildApp({ db, config: loadConfig({}) });
+  app = buildApp({ db, config: loadConfig({}), bus: new LogBus() });
   await app.ready();
 });
 

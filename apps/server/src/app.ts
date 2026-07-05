@@ -4,12 +4,13 @@ import type { Config } from "./config.js";
 import type { DB } from "./db.js";
 import { registerAuth } from "./auth.js";
 import { registerRepoRoutes } from "./repos.js";
+import { registerTaskRoutes } from "./tasks.js";
 import type { LogBus } from "./logbus.js";
 
 export interface AppDeps {
   db: DB;
   config: Config;
-  bus?: LogBus;
+  bus: LogBus;
 }
 
 export function buildApp(deps: AppDeps): FastifyInstance {
@@ -18,6 +19,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   app.register(async (scoped) => {
     registerAuth(scoped, deps.db);
     registerRepoRoutes(scoped, deps.db);
+    registerTaskRoutes(scoped, deps.db, deps.bus);
   });
   return app;
 }
