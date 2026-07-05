@@ -1,0 +1,21 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - "8787:8787"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - HOST_DATA_DIR=${HOST_DATA_DIR:-${PWD}/data}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MODEL=${MODEL}
+      - WORKER_IMAGE=agent-worker:latest
+      - CONCURRENCY=${CONCURRENCY:-2}
+      - TASK_TIMEOUT_MINUTES=${TASK_TIMEOUT_MINUTES:-30}
+    restart: unless-stopped
