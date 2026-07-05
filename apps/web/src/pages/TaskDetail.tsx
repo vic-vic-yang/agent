@@ -15,19 +15,30 @@ export default function TaskDetail() {
 
   useEffect(() => {
     let es: EventSource | null = null;
+    let cancelled = false;
+    const seen = new Set<number>();
     api<TaskDetailData>(`/api/tasks/${id}`).then((t) => {
+      if (cancelled) return;
       setTask(t);
       es = new EventSource(`/api/tasks/${id}/events`);
       es.addEventListener("log", (e) => {
-        const { line } = JSON.parse((e as MessageEvent).data);
+        const { seq, line } = JSON.parse((e as MessageEvent).data);
+        // 断线重连可能重发已收到的行，按 seq 去重
+        if (seen.has(seq)) return;
+        seen.add(seq);
         setLines((prev) => [...prev, line]);
       });
       es.addEventListener("done", () => {
         es?.close();
-        api<TaskDetailData>(`/api/tasks/${id}`).then(setTask);
+        api<TaskDetailData>(`/api/tasks/${id}`).then((t2) => {
+          if (!cancelled) setTask(t2);
+        });
       });
     });
-    return () => es?.close();
+    return () => {
+      cancelled = true;
+      es?.close();
+    };
   }, [id]);
 
   useEffect(() => {

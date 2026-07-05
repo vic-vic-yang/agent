@@ -50,6 +50,28 @@ describe("任务接口", () => {
     expect(res.statusCode).toBe(400);
   });
 
+  it("已结束任务的 SSE：日志行带 id、支持 Last-Event-ID 断点续传", async () => {
+    const id = (await app.inject({
+      method: "POST", url: "/api/tasks", cookies: { sid },
+      payload: { repoId: 1, mode: "qa", prompt: "问个问题" }
+    })).json().id;
+    db.prepare("INSERT INTO task_logs (task_id, seq, line) VALUES (?, 1, '第一行'), (?, 2, '第二行')").run(id, id);
+    db.prepare("UPDATE tasks SET status = 'done' WHERE id = ?").run(id);
+
+    const full = await app.inject({ method: "GET", url: `/api/tasks/${id}/events`, cookies: { sid } });
+    expect(full.payload).toContain("id: 1");
+    expect(full.payload).toContain("第一行");
+    expect(full.payload).toContain("event: done");
+
+    // 带 Last-Event-ID 重连：只补发 seq > 1 的行，不重复第一行
+    const resumed = await app.inject({
+      method: "GET", url: `/api/tasks/${id}/events`,
+      cookies: { sid }, headers: { "last-event-id": "1" }
+    });
+    expect(resumed.payload).not.toContain("第一行");
+    expect(resumed.payload).toContain("第二行");
+  });
+
   it("logs 接口返回已写入的日志行", async () => {
     const id = (await app.inject({
       method: "POST", url: "/api/tasks", cookies: { sid },

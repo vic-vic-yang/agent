@@ -100,4 +100,17 @@ describe("TaskRunner", () => {
     makeRunner(fakeRunner(async () => ({ exitCode: 0, timedOut: false }))).markOrphans();
     expect(task().status).toBe("failed");
   });
+
+  it("容器执行时带上可识别任务的标签", async () => {
+    let seen: ContainerRunSpec | undefined;
+    const runner = makeRunner(
+      fakeRunner(async (spec) => {
+        seen = spec;
+        spec.onLine(serializeResult({ ok: true, summary: "ok" }));
+        return { exitCode: 0, timedOut: false };
+      })
+    );
+    await runner.tick();
+    expect(seen?.labels?.["agent-platform.task"]).toBe("1");
+  });
 });

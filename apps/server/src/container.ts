@@ -1,16 +1,22 @@
 import { Writable } from "node:stream";
 import Docker from "dockerode";
 
+// 平台管理的所有 worker 容器都带此标签，便于重启后识别并清理孤儿容器
+export const MANAGED_LABEL = "agent-platform.managed";
+
 export interface ContainerRunSpec {
   image: string;
   env: Record<string, string>;
   binds: string[];
   timeoutMs: number;
+  labels?: Record<string, string>;
   onLine: (line: string) => void;
 }
 
 export interface ContainerRunner {
   run(spec: ContainerRunSpec): Promise<{ exitCode: number; timedOut: boolean }>;
+  // 清理上次进程遗留的孤儿容器（服务重启时调用）；测试用的假实现可省略
+  cleanupOrphans?(): Promise<void>;
 }
 
 export function createLineSplitter(onLine: (line: string) => void): Writable {
@@ -33,10 +39,20 @@ export function createLineSplitter(onLine: (line: string) => void): Writable {
 export class DockerodeRunner implements ContainerRunner {
   constructor(private docker: Docker = new Docker()) {}
 
+  async cleanupOrphans(): Promise<void> {
+    const list = await this.docker
+      .listContainers({ all: true, filters: { label: [`${MANAGED_LABEL}=1`] } })
+      .catch(() => [] as { Id: string }[]);
+    for (const c of list) {
+      await this.docker.getContainer(c.Id).remove({ force: true }).catch(() => {});
+    }
+  }
+
   async run(spec: ContainerRunSpec): Promise<{ exitCode: number; timedOut: boolean }> {
     const container = await this.docker.createContainer({
       Image: spec.image,
       Env: Object.entries(spec.env).map(([k, v]) => `${k}=${v}`),
+      Labels: { [MANAGED_LABEL]: "1", ...spec.labels },
       HostConfig: {
         Binds: spec.binds,
         SecurityOpt: ["no-new-privileges"],

@@ -49,26 +49,31 @@ export function registerTaskRoutes(app: FastifyInstance, db: DB, bus: LogBus): v
 
   app.get<{ Params: { id: string } }>("/api/tasks/:id/events", (req, reply) => {
     const taskId = Number(req.params.id);
+    reply.hijack();
     reply.raw.writeHead(200, {
       "content-type": "text/event-stream",
       "cache-control": "no-cache",
       connection: "keep-alive"
     });
-    const send = (event: string, data: unknown) =>
-      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    const send = (event: string, seq: number | null, data: unknown) => {
+      const idLine = seq === null ? "" : `id: ${seq}\n`;
+      reply.raw.write(`${idLine}event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
 
     const replay = (afterSeq: number): number => {
       const rows = db
         .prepare("SELECT seq, line FROM task_logs WHERE task_id = ? AND seq > ? ORDER BY seq")
         .all(taskId, afterSeq) as Array<{ seq: number; line: string }>;
-      for (const r of rows) send("log", r);
+      for (const r of rows) send("log", r.seq, r);
       return rows.length ? rows[rows.length - 1].seq : afterSeq;
     };
 
-    let lastSeq = replay(0);
+    // 断线重连时浏览器带上 Last-Event-ID，从该 seq 之后续传，避免整段日志重复
+    const lastEventId = Number(req.headers["last-event-id"]);
+    let lastSeq = replay(Number.isFinite(lastEventId) && lastEventId > 0 ? lastEventId : 0);
     const task = db.prepare("SELECT status FROM tasks WHERE id = ?").get(taskId) as { status: string } | undefined;
     if (!task || !ACTIVE.has(task.status)) {
-      send("done", { taskId, status: task?.status ?? "unknown" });
+      send("done", null, { taskId, status: task?.status ?? "unknown" });
       reply.raw.end();
       return;
     }
@@ -76,11 +81,11 @@ export function registerTaskRoutes(app: FastifyInstance, db: DB, bus: LogBus): v
     const offLine = bus.onLine(taskId, (e) => {
       if (e.seq > lastSeq) {
         lastSeq = e.seq;
-        send("log", { seq: e.seq, line: e.line });
+        send("log", e.seq, { seq: e.seq, line: e.line });
       }
     });
     const offDone = bus.onDone(taskId, (e) => {
-      send("done", e);
+      send("done", null, e);
       cleanup();
       reply.raw.end();
     });

@@ -30,6 +30,8 @@ export class TaskRunner {
 
   start(): void {
     this.markOrphans();
+    // 清理上次进程崩溃/重启遗留的孤儿容器，避免它们继续消耗模型额度甚至提 MR
+    void this.deps.containers.cleanupOrphans?.();
     setInterval(() => void this.tick(), 3000);
   }
 
@@ -115,6 +117,7 @@ export class TaskRunner {
       },
       binds: [`${join(config.hostDataDir, "tasks", String(task.id))}:/task:ro`],
       timeoutMs: config.taskTimeoutMs,
+      labels: { "agent-platform.task": String(task.id) },
       onLine
     });
 
