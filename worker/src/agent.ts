@@ -1,6 +1,13 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { TaskMode } from "@agent-platform/shared";
 
+// qa 为只读模式：禁掉所有能改文件或执行命令的工具（Bash 可绕过文件写限制、
+// 也能读环境变量），只留 SDK 自带的只读检索工具（Read/Grep/Glob）。
+export function disallowedToolsFor(mode: TaskMode): string[] {
+  if (mode === "qa") return ["Write", "Edit", "NotebookEdit", "Bash"];
+  return [];
+}
+
 const CODE_SYSTEM_PROMPT = `你是团队开发平台的编码 agent，在一个已克隆好的代码仓库中工作。
 规则：
 1. 先阅读相关代码、理解项目结构和惯例，再动手修改。
@@ -28,7 +35,7 @@ export async function runAgent(opts: {
       permissionMode: "bypassPermissions",
       systemPrompt: opts.mode === "code" ? CODE_SYSTEM_PROMPT : QA_SYSTEM_PROMPT,
       ...(process.env.MODEL ? { model: process.env.MODEL } : {}),
-      ...(opts.mode === "qa" ? { disallowedTools: ["Write", "Edit", "NotebookEdit"] } : {})
+      disallowedTools: disallowedToolsFor(opts.mode)
     }
   });
 

@@ -3,21 +3,29 @@ import { serializeResult, type TaskResult, type TaskSpec } from "@agent-platform
 import { runAgent } from "./agent.js";
 import { cloneRepo, commitAndPush, hasChanges } from "./git.js";
 import { createMergeRequest } from "./mr.js";
+import { redactSecrets } from "./redact.js";
 import { mrDescription, mrTitle } from "./summary.js";
 
 const WORK_DIR = "/work/repo";
 
+// 所有输出（日志行与结果 JSON）都经此脱敏，防止 git/命令报错把凭证带到任务详情页
+const SECRETS = [process.env.GIT_TOKEN ?? ""];
+
 function emit(r: TaskResult): void {
-  console.log(serializeResult(r));
+  console.log(redactSecrets(serializeResult(r), SECRETS));
 }
 
 async function main(): Promise<void> {
   const spec = JSON.parse(readFileSync(process.env.TASK_FILE ?? "/task/task.json", "utf8")) as TaskSpec;
   const token = process.env.GIT_TOKEN ?? "";
-  const log = (line: string) => console.log(line);
+  const log = (line: string) => console.log(redactSecrets(line, SECRETS));
 
   log(`任务 #${spec.taskId}（${spec.mode} 模式）开始，克隆 ${spec.repo.projectPath} ...`);
   await cloneRepo(spec.repo.gitUrl, token, spec.repo.defaultBranch, WORK_DIR);
+
+  // 凭证只在克隆时需要。qa 模式后续绝不 push，克隆完立刻从环境中抹掉写凭证，
+  // 使 agent 子进程即便有命令执行能力也读不到 token（纵深防御，配合禁用 Bash）。
+  if (spec.mode === "qa") delete process.env.GIT_TOKEN;
 
   log("agent 开始工作...");
   const summary = await runAgent({ mode: spec.mode, prompt: spec.prompt, cwd: WORK_DIR, log });
